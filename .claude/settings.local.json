@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm changeset init:*)",
+      "Bash(npm run build)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm build:*)",
+      "Bash(turbo run build:*)",
+      "Bash(pnpm turbo run build:*)",
+      "Bash(pnpm changeset:*)",
+      "Bash(pnpm docs:build)",
+      "Bash(pnpm docs:preview:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm test:types:*)",
+      "Bash(pnpm release)",
+      "Bash(npm whoami:*)",
+      "Bash(npm version:*)",
+      "Bash(npm init:*)",
+      "Bash(pnpm run build)",
+      "Bash(pnpm prisma init:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(pnpm prisma dev)",
+      "Bash(pnpm prisma:generate:*)",
+      "Bash(pnpm prisma:migrate:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx prisma generate:*)"
+    ]
+  }
+}

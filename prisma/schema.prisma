@@ -1,0 +1,156 @@
+// 投研分析系统数据库模型
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关系
+  contents    Content[]
+  viewpoints  Viewpoint[]
+  decisions   Decision[]
+  reviews     Review[]
+
+  @@map("users")
+}
+
+// 内容模型 - 存储各种投研资料
+model Content {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  url         String?
+  content     String?     // 原始内容
+  contentType ContentType @default(ARTICLE)
+  tags        String[]    // 标签数组
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // 关系
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewpoints Viewpoint[]  // 关联的观点
+
+  @@map("contents")
+}
+
+// 观点模型 - 用户对内容的分析和观点
+model Viewpoint {
+  id          String       @id @default(cuid())
+  title       String
+  summary     String       // 观点摘要
+  analysis    String       // 详细分析
+  confidence  Int          // 信心程度 1-10
+  outlook     OutlookType  @default(NEUTRAL) // 市场展望
+  tags        String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // 关系
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentId  String?
+  content    Content?     @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  decisions  Decision[]   // 关联的决策
+
+  @@map("viewpoints")
+}
+
+// 决策模型 - 基于观点做出的投资决策
+model Decision {
+  id           String       @id @default(cuid())
+  title        String
+  description  String       // 决策描述
+  action       ActionType   @default(BUY) // 买入/卖出/持有
+  amount       Float        // 金额/数量
+  price        Float?       // 价格
+  reason       String       // 决策理由
+  status       DecisionStatus @default(PLANNING) // 计划中/已执行/已完成
+  confidence   Int          // 信心程度 1-10
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // 关系
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewpointId String?
+  viewpoint   Viewpoint?   @relation(fields: [viewpointId], references: [id], onDelete: SetNull)
+  reviews     Review[]     // 关联的复盘
+
+  @@map("decisions")
+}
+
+// 复盘模型 - 对决策结果的复盘分析
+model Review {
+  id          String      @id @default(cuid())
+  title       String
+  summary     String      // 复盘总结
+  result      ReviewResult @default(PENDING) // 盈利/亏损/待定
+  profit      Float?      // 收益金额
+  profitRate  Float?      // 收益率
+  lesson      String      // 经验教训
+  mistakes    String?     // 错误分析
+  improvements String?    // 改进建议
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // 关系
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decisionId String?
+  decision   Decision?    @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+
+  @@map("reviews")
+}
+
+// 内容类型枚举
+enum ContentType {
+  ARTICLE    // 文章
+  NEWS       // 新闻
+  REPORT     // 研报
+  BOOK       // 书籍
+  VIDEO      // 视频
+  PODCAST    // 播客
+  NOTE       // 笔记
+}
+
+// 市场展望枚举
+enum OutlookType {
+  BULLISH    // 看涨
+  BEARISH    // 看跌
+  NEUTRAL    // 中性
+}
+
+// 行动类型枚举
+enum ActionType {
+  BUY        // 买入
+  SELL       // 卖出
+  HOLD       // 持有
+}
+
+// 决策状态枚举
+enum DecisionStatus {
+  PLANNING   // 计划中
+  EXECUTED   // 已执行
+  COMPLETED  // 已完成
+  CANCELLED  // 已取消
+}
+
+// 复盘结果枚举
+enum ReviewResult {
+  PROFIT     // 盈利
+  LOSS       // 亏损
+  NEUTRAL    // 持平
+  PENDING    // 待定
+}
