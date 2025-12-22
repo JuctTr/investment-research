@@ -166,4 +166,4 @@ export default UserCard;
 
 ---
 
-_本规范适用于SHEIN品牌独立站monorepo中的所有前端项目，确保代码质量和团队协作效率。_
+_本规范适用于monorepo中的所有前端项目，确保代码质量和团队协作效率。_
