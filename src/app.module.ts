@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { CrawlerModule } from './modules/crawler/crawler.module';
+import { WechatModule } from './modules/wechat/wechat.module';
 import { CommonModule } from './common/common.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 
@@ -19,6 +20,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 
     // 爬虫模块
     CrawlerModule,
+    WechatModule,
 
     // 基础设施模块
     CommonModule,

@@ -8,10 +8,16 @@ import { QUEUE_NAMES, QUEUE_CONFIG } from './queue.constants';
     BullModule.forRoot({
       connection: QUEUE_CONFIG.connection,
     }),
-    BullModule.registerQueue({
-      name: QUEUE_NAMES.XUEQIU_CRAWLER,
-      defaultJobOptions: QUEUE_CONFIG.defaultJobOptions,
-    }),
+    BullModule.registerQueue(
+      {
+        name: QUEUE_NAMES.XUEQIU_CRAWLER,
+        defaultJobOptions: QUEUE_CONFIG.defaultJobOptions,
+      },
+      {
+        name: QUEUE_NAMES.WECHAT_CRAWLER,
+        defaultJobOptions: QUEUE_CONFIG.defaultJobOptions,
+      },
+    ),
   ],
   providers: [QueueService],
   exports: [QueueService],

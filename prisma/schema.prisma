@@ -306,3 +306,110 @@ model XueqiuStatus {
   @@unique([statusId])
   @@map("xueqiu_statuses")
 }
+
+// ==================== 微信公众号爬虫模块 ====================
+
+// 账号状态枚举
+enum AccountStatus {
+  ACTIVE     // 活跃
+  INACTIVE   // 停更
+  DELETED    // 已删除
+  BLOCKED    // 封禁
+}
+
+// 爬取模式枚举
+enum CrawlMode {
+  SOGOU      // 搜狗搜索入口
+  WECHAT_PC  // 微信PC客户端
+  AUTO       // 自动降级（优先搜狗，失败降级PC客户端）
+}
+
+// 爬取状态枚举
+enum CrawlStatus {
+  PENDING    // 待处理
+  RUNNING    // 运行中
+  SUCCESS    // 成功
+  FAILED     // 失败
+  PARTIAL    // 部分成功
+}
+
+// 微信公众号账户模型
+model WechatAccount {
+  id              String        @id @default(cuid())
+  accountId       String        @unique @map("account_id") @db.VarChar(100)
+  name            String        @db.VarChar(200)
+  introduction    String?       @db.Text
+  avatarUrl       String?       @map("avatar_url") @db.VarChar(500)
+  status          AccountStatus @default(ACTIVE)
+  crawlMode       CrawlMode     @default(AUTO)
+  followersCount  Int           @default(0) @map("followers_count")
+  publishCount    Int           @default(0) @map("publish_count")
+  lastCrawlAt     DateTime?     @map("last_crawl_at") @db.Timestamptz
+  lastPublishAt   DateTime?     @map("last_publish_at") @db.Timestamptz
+  enabled         Boolean       @default(true)
+  tags            String[]      @default([])
+  rawData         Json?         @map("raw_data") @db.JsonB
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  articles        WechatArticle[]
+  crawlLogs       WechatCrawlLog[]
+
+  @@index([status])
+  @@index([enabled])
+  @@index([lastCrawlAt])
+  @@map("wechat_accounts")
+}
+
+// 微信公众号文章模型
+model WechatArticle {
+  id              String       @id @default(cuid())
+  articleId       String       @unique @map("article_id") @db.VarChar(100)
+  accountId       String       @map("account_id") @db.VarChar(100)
+  title           String       @db.VarChar(500)
+  author          String?      @db.VarChar(200)
+  digest          String?      @db.Text
+  content         String?      @db.Text
+  contentHtml     String?      @map("content_html") @db.Text
+  coverUrl        String?      @map("cover_url") @db.VarChar(500)
+  sourceUrl       String       @map("source_url") @db.VarChar(500)
+  publishTime     DateTime     @map("publish_time") @db.Timestamptz
+  readCount       Int          @default(0) @map("read_count")
+  likeCount       Int          @default(0) @map("like_count")
+  commentCount    Int          @default(0) @map("comment_count")
+  rewardCount     Int          @default(0) @map("reward_count")
+  isOriginal      Boolean      @default(false) @map("is_original")
+  copyrightStat   Int?         @default(0) @map("copyright_stat")
+  rawData         Json?        @map("raw_data") @db.JsonB
+  dbCreatedAt     DateTime     @default(now()) @map("db_created_at") @db.Timestamptz
+  dbUpdatedAt     DateTime     @default(now()) @updatedAt @map("db_updated_at") @db.Timestamptz
+
+  account         WechatAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([publishTime])
+  @@index([publishTime(sort: Desc)], name: "wechat_articles_publish_time_desc_idx")
+  @@map("wechat_articles")
+}
+
+// 微信爬取日志模型
+model WechatCrawlLog {
+  id              String       @id @default(cuid())
+  accountId       String       @map("account_id")
+  account         WechatAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  crawlMode       CrawlMode    @map("crawl_mode")
+  status          CrawlStatus
+  articlesFetched Int          @default(0) @map("articles_fetched")
+  articlesStored  Int          @default(0) @map("articles_stored")
+  errorMessage    String?      @map("error_message") @db.Text
+  errorStack      String?      @map("error_stack") @db.Text
+  duration        Int?         @map("duration") // 执行时长（毫秒）
+  startedAt       DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  completedAt     DateTime?    @map("completed_at") @db.Timestamptz
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([accountId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("wechat_crawl_logs")
+}
