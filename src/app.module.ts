@@ -1,11 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
-import { ContentModule } from './modules/content/content.module';
-import { ViewpointModule } from './modules/viewpoint/viewpoint.module';
-import { DecisionModule } from './modules/decision/decision.module';
-import { ReviewModule } from './modules/review/review.module';
-import { AiModule } from './modules/ai/ai.module';
+import { CrawlerModule } from './modules/crawler/crawler.module';
 import { CommonModule } from './common/common.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 
@@ -21,12 +17,8 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     // 数据库模块
     DatabaseModule,
 
-    // 核心业务模块
-    ContentModule,
-    ViewpointModule,
-    DecisionModule,
-    ReviewModule,
-    AiModule,
+    // 爬虫模块
+    CrawlerModule,
 
     // 基础设施模块
     CommonModule,

@@ -1,7 +1,7 @@
 # CLAUDE 项目配置文件
 
-*最后更新: 2025-12-20*
-*版本: v1.0*
+_最后更新: 2025-12-21_
+_版本: v1.0_
 
 本文件为Claude Code (claude.ai/code) 提供项目工作指导。
 
@@ -9,94 +9,153 @@
 
 **重要要求**: Claude Code在`.claude`目录下生成的所有文件和报告，必须使用中文表达。**Always Output With Chinese.**
 
-# Project Overview
+## Project Overview
 
-这是一个个人投研分析系统的 MVP 实现，
-目标是工程化验证「观点 → 决策 → 复盘」的学习闭环。
+Personal investment research system implementing a "Viewpoint → Decision → Review" learning loop. Built as a full-stack application with NestJS backend and Next.js frontend.
 
-当前阶段：**基础架构搭建**
-不追求功能完整，仅搭建可演进的骨架。
+## Development Commands
 
----
+### Database Operations
 
-# Tech Stack
+```bash
+# Start PostgreSQL database
+docker-compose up -d
 
-Frontend:
-- React + TypeScript
-- Vite
-- Ant Design
-- React Query
-- Zustand
+# Generate Prisma client
+pnpm prisma:generate
 
-Backend:
-- Node.js
-- NestJS
-- Prisma
-- PostgreSQL
+# Run database migrations
+pnpm prisma:migrate
 
-Architecture:
-- Modular Monolith
-- 单实例部署
+# Seed database with initial data
+pnpm prisma:seed
 
----
+# Open database management UI
+pnpm prisma:studio
+```
 
-# Directory Structure
+### Backend Development
 
-举个例子，实际看看官方框架的目录情况：
+```bash
+# Start backend in development mode (with hot reload)
+pnpm start:dev
 
-backend/
-  src/
-    modules/
-      content/
-      viewpoint/
-      decision/
-      review/
-      ai/
-    scheduler/
-    common/
+# Build backend for production
+pnpm build
 
-frontend/
-  src/
-    pages/
-    components/
-    stores/
-    services/
+# Run tests
+pnpm test
 
----
+# Run tests with coverage
+pnpm test:cov
 
-# Development Workflow
+# Run E2E tests
+pnpm test:e2e
+```
 
-当执行任务时，请遵循以下顺序：
+### Frontend Development
 
-1. 明确当前属于：
-   - 架构搭建
-   - 模块骨架
-   - API 定义
-   - 数据模型
-2. 优先生成：
-   - 接口定义
-   - 类型定义
-   - 模块边界
-3. 暂不实现复杂业务逻辑，除非明确要求
+```bash
+cd client
 
----
+# Start frontend development server
+pnpm dev
 
-# Coding Rules
+# Build frontend for production
+pnpm build
 
-- 所有代码必须使用 TypeScript
-- 模块之间只能通过 Service 调用
-- 禁止跨模块直接访问数据库
-- 不提前实现未在 TDD 中出现的功能
-- 包管理器必须使用pnpm
+# Run linting
+pnpm lint
+```
 
----
+## Architecture Overview
 
-# How to Work With This Repo
+### Backend (NestJS)
 
-- 如果需求不明确，必须先提出假设
-- 如果实现可能违反 Constitution，必须停止并说明原因
-- 所有生成的代码应可直接运行或清晰标注 TODO
+- **Modular Architecture**: Each business domain is a separate module (content, viewpoint, decision, review, ai)
+- **Global Database Module**: PrismaService is globally available via `@Global()` decorator
+- **API Versioning**: All endpoints prefixed with `/api/v1`
+- **Swagger Documentation**: Available at `/api` when backend is running
+- **Validation**: Global DTO validation pipe with auto type conversion
 
----
+### Database Schema (Prisma)
 
-*本配置文件确保Claude Code能够正确理解和应用项目规范，提供高质量的开发支持。*
+Core entities and relationships:
+
+```
+User → Content → Viewpoint → Decision → Review
+```
+
+Key enums:
+
+- `ContentType`: ARTICLE, NEWS, REPORT, BOOK, VIDEO, PODCAST, NOTE
+- `OutlookType`: BULLISH, BEARISH, NEUTRAL
+- `ActionType`: BUY, SELL, HOLD
+- `DecisionStatus`: PLANNING, EXECUTED, COMPLETED, CANCELLED
+- `ReviewResult`: PROFIT, LOSS, NEUTRAL, PENDING
+
+### Frontend (Next.js 16)
+
+- **App Router**: Using Next.js 16's app directory structure
+- **State Management**: Zustand for client state, React Query for server state
+- **UI Framework**: Ant Design 6
+- **API Layer**: Axios-based services with interceptors for auth and error handling
+- **Type Safety**: Shared TypeScript types between frontend and backend
+
+## Key Configuration
+
+### Environment Variables
+
+Backend `.env`:
+
+```
+PORT=3000
+DATABASE_URL=postgresql://postgres:password123@localhost:5432/investment_research
+JWT_SECRET=your-jwt-secret-key
+```
+
+Frontend `.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api/v1
+PORT=3001
+```
+
+### Database Configuration
+
+- PostgreSQL 15 running in Docker container
+- Port: 5432
+- Database: investment_research
+- User/Password: postgres/password123
+
+## Development Workflow
+
+1. **Initial Setup**:
+   - Start database: `docker-compose up -d`
+   - Setup backend: `pnpm install && pnpm prisma:generate && pnpm prisma:migrate`
+   - Setup frontend: `cd client && pnpm install`
+
+2. **Daily Development**:
+   - Backend: `pnpm start:dev` (runs on port 3000)
+   - Frontend: `cd client && pnpm dev` (runs on port 3001)
+   - Database UI: `pnpm prisma:studio`
+
+3. **Database Changes**:
+   - Modify `prisma/schema.prisma`
+   - Run `pnpm prisma:migrate` to apply changes
+   - Update types if needed
+
+## Code Organization Rules
+
+- **Module Communication**: Modules must communicate through Services only
+- **Database Access**: Use PrismaService, never direct database connections
+- **TypeScript**: Strict mode enabled, all code must be typed
+- **Package Manager**: Must use pnpm (enforced by package manager config)
+
+## Testing
+
+- Test files: `**/__tests__/**/*.ts` or `**/?(*.)+(spec|test).ts`
+- Jest configuration in `jest.config.js`
+- E2E tests in separate configuration
+- Coverage reports available with `pnpm test:cov`

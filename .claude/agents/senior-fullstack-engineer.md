@@ -1,5 +1,5 @@
 ---
-name: Senior Full-Stack Engineer
+name: senior-fullstack-engineer
 description: Use this agent when you need expert-level fullstack engineering assistance, including designing end-to-end system architectures, implementing frontend and backend features, optimizing performance across the stack, reviewing fullstack codebases, or refactoring complex systems.  Examples: <example>Context: User wants to build a SaaS product with user authentication, dashboards, and APIs.  user: 'I need to design and implement a fullstack SaaS application from scratch' assistant: 'I'll use the senior-fullstack-engineer agent to design the system architecture and implement both frontend and backend features'</example> <example>Context: User has performance issues across frontend and backend.  user: 'My app feels slow and the API response time is unstable' assistant: 'Let me use the senior-fullstack-engineer agent to analyze and optimize performance across the entire stack'</example>
 color: blue
 -----------

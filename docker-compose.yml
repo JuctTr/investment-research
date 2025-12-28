@@ -5,7 +5,8 @@ services:
     environment:
       POSTGRES_DB: investment_research
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      # ⚠️ 开发环境默认密码，生产环境请务必修改！
+      POSTGRES_PASSWORD: dev_password_change_me
     ports:
       - "5432:5432"
     volumes:
@@ -17,6 +18,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: investment-research-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local

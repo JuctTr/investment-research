@@ -14,17 +14,28 @@ node_modules/
 # 日志
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # 测试覆盖率
 coverage/
+.nyc_output/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # 操作系统
 .DS_Store
 Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 
 # TypeScript
 *.tsbuildinfo
@@ -33,3 +44,9 @@ Thumbs.db
 *.tmp
 *.temp
 /generated/prisma
+
+# Claude Code
+.claude
+
+# Prisma
+/prisma/migrations/**/migration.sql.tmp

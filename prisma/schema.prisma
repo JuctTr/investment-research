@@ -154,3 +154,155 @@ enum ReviewResult {
   NEUTRAL    // 持平
   PENDING    // 待定
 }
+
+// ==================== 爬虫模块 ====================
+
+// 爬虫数据源配置
+model CrawlerSource {
+  id            String          @id @default(cuid())
+  name          String
+  sourceType    SourceType
+  sourceUrl     String          @unique
+  enabled       Boolean         @default(true)
+  fetchInterval Int             @default(3600)
+  lastFetchAt   DateTime?
+  lastEtag      String?
+  authConfig    Json?
+  options       Json?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tasks         CrawlerTask[]
+
+  @@map("crawler_sources")
+}
+
+// 爬虫任务记录
+model CrawlerTask {
+  id             String       @id @default(cuid())
+  sourceId       String
+  source         CrawlerSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status         TaskStatus   @default(PENDING)
+  scheduledAt    DateTime
+  startedAt      DateTime?
+  completedAt    DateTime?
+  totalFetched   Int          @default(0)
+  totalParsed    Int          @default(0)
+  totalStored    Int          @default(0)
+  errorMessage   String?
+  errorStack     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("crawler_tasks")
+}
+
+// 数据源类型枚举
+enum SourceType {
+  RSS
+  WECHAT
+  TWITTER
+  REDDIT
+  HACKERNEWS
+  CUSTOM
+}
+
+// 任务状态枚举
+enum TaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+// ==================== 雪球爬虫模块 ====================
+
+// 雪球用户资料模型
+model XueqiuUserProfile {
+  uid            String   @id @map("uid") @db.VarChar
+  screenName     String   @map("screen_name") @db.VarChar(100)
+  followersCount Int      @default(0) @map("followers_count")
+  friendsCount   Int      @default(0) @map("friends_count")
+  description    String?  @db.Text
+  rawData        Json?    @map("raw_data") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  lastCrawlAt    DateTime? @map("last_crawl_at") @db.Timestamptz
+
+  @@index([lastCrawlAt])
+  @@map("xueqiu_users")
+}
+
+// 雪球爬取任务模型
+model XueqiuCrawlTask {
+  id           String            @id @default(uuid()) @db.Uuid
+  targetType   String            @default("") @map("target_type") @db.VarChar(50)
+  targetId     String            @default("") @map("target_id") @db.VarChar
+  status       XueqiuTaskStatus  @default(PENDING)
+  priority     Int               @default(5)
+  retryCount   Int               @default(0) @map("retry_count")
+  errorMessage String?           @map("error_message") @db.Text
+  result       Json?             @db.JsonB
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  startedAt    DateTime?         @map("started_at") @db.Timestamptz
+  completedAt  DateTime?         @map("completed_at") @db.Timestamptz
+
+  @@index([status, priority, createdAt])
+  @@map("xueqiu_crawl_tasks")
+}
+
+// Cookie池状态模型
+model XueqiuCookie {
+  id         String       @id @default(uuid()) @db.Uuid
+  cookie     String       @db.Text
+  status     CookieStatus @default(ACTIVE)
+  expiresAt  DateTime     @map("expires_at") @db.Timestamptz
+  lastUsedAt DateTime?    @map("last_used_at") @db.Timestamptz
+  failCount  Int          @default(0) @map("fail_count")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("xueqiu_cookies")
+}
+
+// 任务状态枚举
+enum XueqiuTaskStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Cookie状态枚举
+enum CookieStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+// 雪球动态模型
+model XueqiuStatus {
+  id            String   @id @default(uuid()) @db.Uuid
+  statusId      String   @map("status_id") @db.VarChar(50)
+  userId        String   @map("user_id") @db.VarChar
+  content       String?  @db.Text
+  createdAt     DateTime @map("created_at") @db.Timestamptz
+  rawText       String?  @map("raw_text") @db.Text
+  expandedText  String?  @map("expanded_text") @db.Text
+  targetCount   Int      @default(0) @map("target_count")
+  commentCount  Int      @default(0) @map("comment_count")
+  likeCount     Int      @default(0) @map("like_count")
+  repostCount   Int      @default(0) @map("repost_count")
+  pictures      String[] @default([]) @map("pictures")
+  rawData       Json?    @map("raw_data") @db.JsonB
+  dbCreatedAt   DateTime @default(now()) @map("db_created_at") @db.Timestamptz
+  dbUpdatedAt   DateTime @default(now()) @updatedAt @map("db_updated_at") @db.Timestamptz
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@unique([statusId])
+  @@map("xueqiu_statuses")
+}

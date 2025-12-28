@@ -27,7 +27,20 @@
       "Bash(pnpm prisma:generate:*)",
       "Bash(pnpm prisma:migrate:*)",
       "Bash(npx prisma db push:*)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npx prisma generate:*)",
+      "Bash(pnpm prisma migrate dev:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(pnpm run start:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(pnpm start:dev)",
+      "Bash(docker logs:*)",
+      "Bash(docker start:*)",
+      "Bash(docker exec:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npx puppeteer browsers install:*)"
     ]
   }
 }
