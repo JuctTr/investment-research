@@ -1,16 +1,39 @@
-export default function Home() {
-  return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
-      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-        <h1>投研分析系统</h1>
-        <p style={{ fontSize: '18px', color: '#666' }}>
-          个人投研分析系统 - 观点 → 决策 → 复盘
-        </p>
-      </div>
+"use client";
+import { Spin } from "antd";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-      <div style={{ textAlign: 'center', marginTop: '48px' }}>
-        <p>访问 <a href="/content">内容管理</a> 开始使用</p>
-      </div>
+/**
+ * 首页 - 路由跳转页面
+ *
+ * 根据用户登录状态进行跳转：
+ * - 已登录：跳转到仪表盘 /dashboard
+ * - 未登录：跳转到登录页 /login
+ */
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // 检查是否有 Token
+    const token = localStorage.getItem("access_token");
+
+    if (token) {
+      router.replace("/dashboard");
+    } else {
+      router.replace("/login");
+    }
+  }, [router]);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+      }}
+    >
+      <Spin size="large" />
     </div>
-  )
+  );
 }
