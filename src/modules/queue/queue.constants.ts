@@ -1,5 +1,5 @@
 export const QUEUE_NAMES = {
-  XUEQIU_CRAWLER: 'xueqiu-crawler',
+  GENERIC_CRAWLER: 'generic-crawler',
   COOKIE_REFRESH: 'cookie-refresh',
   WECHAT_CRAWLER: 'WECHAT_CRAWLER',
 } as const;

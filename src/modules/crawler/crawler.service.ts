@@ -1,20 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { QueueService } from '../queue/queue.service';
-import { CookiePoolService } from '../browser/cookie-pool.service';
-import { BrowserService } from '../browser/browser.service';
-import { XueqiuParserService } from '../parser/xueqiu-parser.service';
-import { UserProfileRepository } from '../xueqiu/repositories/user-profile.repository';
-import { CreateCrawlTaskDto } from './dto/create-task.dto';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../../database/prisma.service";
+import { BrowserService } from "../browser/browser.service";
+import { CookiePoolService } from "../browser/cookie-pool.service";
+import { XueqiuParserService } from "../parser/xueqiu-parser.service";
+import { QueueService } from "../queue/queue.service";
+import { UserProfileRepository } from "../xueqiu/repositories/user-profile.repository";
+import { CreateCrawlerTaskDto } from "./dto/create-crawler-task.dto";
+import { CreateSourceDto } from "./dto/create-source.dto";
+import { CreateCrawlTaskDto } from "./dto/create-task.dto";
+import { QuerySourcesDto } from "./dto/query-sources.dto";
+import { QueryTasksDto } from "./dto/query-tasks.dto";
+import { UpdateSourceDto } from "./dto/update-source.dto";
 
 // 睡眠辅助函数
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 @Injectable()
 export class CrawlerService {
   private readonly logger = new Logger(CrawlerService.name);
-  private readonly XUEQIU_API_BASE = 'https://xueqiu.com';
+  private readonly XUEQIU_API_BASE = "https://xueqiu.com";
 
   constructor(
+    private readonly prisma: PrismaService,
     private readonly queue: QueueService,
     private readonly cookiePool: CookiePoolService,
     private readonly browser: BrowserService,
@@ -51,7 +58,7 @@ export class CrawlerService {
 
       // 验证数据
       if (!this.parser.validateUserData(userData)) {
-        throw new Error('接收到的用户数据无效');
+        throw new Error("接收到的用户数据无效");
       }
 
       // 持久化
@@ -77,7 +84,7 @@ export class CrawlerService {
 
       // 访问页面
       await page.goto(url, {
-        waitUntil: 'networkidle2',
+        waitUntil: "networkidle2",
         timeout: 30000,
       });
 
@@ -93,8 +100,12 @@ export class CrawlerService {
       this.logger.log(`页面标题: ${pageTitle}`);
 
       // 检查是否有 WAF 挑战 - 等待更长时间让 JavaScript 执行
-      if (pageTitle.includes('403') || pageTitle.includes('Forbidden') || pageTitle.includes('Just a moment')) {
-        this.logger.log('检测到 WAF 挑战，等待验证完成...');
+      if (
+        pageTitle.includes("403") ||
+        pageTitle.includes("Forbidden") ||
+        pageTitle.includes("Just a moment")
+      ) {
+        this.logger.log("检测到 WAF 挑战，等待验证完成...");
         await sleep(10000);
 
         // 重新获取 URL
@@ -116,9 +127,9 @@ export class CrawlerService {
         }
 
         // 方法3: 从页面元素中提取
-        const scripts = document.querySelectorAll('script');
+        const scripts = document.querySelectorAll("script");
         for (const script of Array.from(scripts)) {
-          const text = script.textContent || '';
+          const text = script.textContent || "";
           const targetMatch = text.match(/SNOWMAN_TARGET\s*=\s*({[^;]+});/);
           if (targetMatch) {
             try {
@@ -145,16 +156,21 @@ export class CrawlerService {
         // 如果还是获取不到，返回页面 HTML 用于调试
         const html = await page.content();
         this.logger.debug(`页面 HTML 前 500 字符: ${html.substring(0, 500)}`);
-        throw new Error('无法从页面提取用户数据，可能被反爬虫拦截或页面结构已变化');
+        throw new Error(
+          "无法从页面提取用户数据，可能被反爬虫拦截或页面结构已变化"
+        );
       }
 
       // 记录实际获取的数据结构用于调试
-      this.logger.debug(`获取到的 userData 结构: ${JSON.stringify(Object.keys(userData))}`);
+      this.logger.debug(
+        `获取到的 userData 结构: ${JSON.stringify(Object.keys(userData))}`
+      );
 
       // 雪球返回的数据结构：userData 本身就是用户信息（使用 snake_case）
       // 可能的嵌套结构：userData.user, userData.userInfo, userData.profile
       // 需要先检查这些属性是否为有效对象（不是数组或 null）
-      const isValidObject = (obj: any) => obj && typeof obj === 'object' && !Array.isArray(obj);
+      const isValidObject = (obj: any) =>
+        obj && typeof obj === "object" && !Array.isArray(obj);
 
       const source =
         (isValidObject(userData.user) && userData.user) ||
@@ -163,21 +179,30 @@ export class CrawlerService {
         userData;
 
       // 检查是否有有效数据（通过检查是否有 id 或其他标识字段）
-      const hasValidData = source && (source.id || source.userId || source.uid || source.screen_name || source.screenName || source.name);
+      const hasValidData =
+        source &&
+        (source.id ||
+          source.userId ||
+          source.uid ||
+          source.screen_name ||
+          source.screenName ||
+          source.name);
 
       if (!hasValidData) {
         // 如果无法从页面数据提取用户信息，从 URL 提取作为备选方案
-        this.logger.warn(`无法从页面数据提取用户信息，userData: ${JSON.stringify(userData).substring(0, 200)}`);
+        this.logger.warn(
+          `无法从页面数据提取用户信息，userData: ${JSON.stringify(userData).substring(0, 200)}`
+        );
 
         const urlMatch = currentUrl.match(/\/u\/(\d+)/);
         const userIdFromUrl = urlMatch ? urlMatch[1] : userId;
 
         return {
           uid: userIdFromUrl,
-          screenName: pageTitle.replace(' - 雪球', '') || '',
+          screenName: pageTitle.replace(" - 雪球", "") || "",
           followersCount: 0,
           friendsCount: 0,
-          description: '',
+          description: "",
           rawData: userData,
         };
       }
@@ -185,10 +210,21 @@ export class CrawlerService {
       // 转换为 DTO 格式（雪球 API 使用 snake_case，需要兼容多种命名）
       return {
         uid: String(source.id || source.userId || source.uid || userId),
-        screenName: source.screen_name || source.screenName || source.name || '',
-        followersCount: source.followers_count ?? source.followersCount ?? source.followers ?? source.fans_count ?? 0,
-        friendsCount: source.friends_count ?? source.friendsCount ?? source.following ?? source.friends_count ?? 0,
-        description: source.description ?? source.bio ?? source.intro ?? '',
+        screenName:
+          source.screen_name || source.screenName || source.name || "",
+        followersCount:
+          source.followers_count ??
+          source.followersCount ??
+          source.followers ??
+          source.fans_count ??
+          0,
+        friendsCount:
+          source.friends_count ??
+          source.friendsCount ??
+          source.following ??
+          source.friends_count ??
+          0,
+        description: source.description ?? source.bio ?? source.intro ?? "",
         rawData: userData,
       };
     } finally {
@@ -215,5 +251,258 @@ export class CrawlerService {
    */
   async getCookiePoolStatus() {
     return this.cookiePool.getPoolStatus();
+  }
+
+  // ==================== 信息源管理 ====================
+
+  /**
+   * 获取信息源列表
+   */
+  async getSources(query: QuerySourcesDto) {
+    const { page = 1, pageSize = 20, type, enabled, keyword } = query;
+
+    const where: any = {};
+
+    if (type) {
+      where.sourceType = type;
+    }
+
+    if (enabled !== undefined) {
+      where.enabled = enabled;
+    }
+
+    if (keyword) {
+      where.OR = [
+        { name: { contains: keyword, mode: "insensitive" } },
+        { sourceUrl: { contains: keyword, mode: "insensitive" } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.crawlerSource.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.crawlerSource.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
+  /**
+   * 获取单个信息源详情
+   */
+  async getSource(id: string) {
+    const source = await this.prisma.crawlerSource.findUnique({
+      where: { id },
+    });
+
+    if (!source) {
+      throw new NotFoundException(`信息源 ${id} 不存在`);
+    }
+
+    return source;
+  }
+
+  /**
+   * 创建信息源
+   */
+  async createSource(dto: CreateSourceDto) {
+    return this.prisma.crawlerSource.create({
+      data: {
+        name: dto.name,
+        sourceType: dto.sourceType,
+        sourceUrl: dto.sourceUrl,
+        enabled: dto.enabled ?? false,
+        fetchInterval: dto.fetchInterval ?? 3600,
+        authConfig: dto.authConfig,
+        options: dto.options,
+      },
+    });
+  }
+
+  /**
+   * 更新信息源
+   */
+  async updateSource(id: string, dto: UpdateSourceDto) {
+    const source = await this.getSource(id);
+
+    return this.prisma.crawlerSource.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  /**
+   * 删除信息源
+   */
+  async deleteSource(id: string) {
+    await this.getSource(id);
+
+    await this.prisma.crawlerSource.delete({
+      where: { id },
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * 启动信息源爬取
+   */
+  async startSource(id: string) {
+    const source = await this.getSource(id);
+
+    // 启用信息源
+    await this.prisma.crawlerSource.update({
+      where: { id },
+      data: { enabled: true },
+    });
+
+    // 创建爬取任务
+    const task = await this.prisma.crawlerTask.create({
+      data: {
+        sourceId: id,
+        status: "PENDING",
+        scheduledAt: new Date(),
+      },
+    });
+
+    // 将任务加入队列执行
+    await this.queue.addSourceJob(id, source.sourceType, task.id);
+
+    this.logger.log(`信息源 ${source.name} 的爬取任务已加入队列: ${task.id}`);
+
+    return task;
+  }
+
+  /**
+   * 停止信息源爬取
+   */
+  async stopSource(id: string) {
+    const source = await this.getSource(id);
+
+    // 禁用信息源
+    await this.prisma.crawlerSource.update({
+      where: { id },
+      data: { enabled: false },
+    });
+
+    // 取消所有运行中和待处理的任务
+    await this.prisma.crawlerTask.updateMany({
+      where: {
+        sourceId: id,
+        status: { in: ["PENDING", "RUNNING"] },
+      },
+      data: {
+        status: "CANCELLED",
+        completedAt: new Date(),
+      },
+    });
+
+    this.logger.log(`信息源 ${source.name} 已停止`);
+
+    return { success: true };
+  }
+
+  // ==================== 任务管理 ====================
+
+  /**
+   * 获取任务列表
+   */
+  async getTasks(query: QueryTasksDto) {
+    const { page = 1, pageSize = 20, status, sourceId } = query;
+
+    const where: any = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (sourceId) {
+      where.sourceId = sourceId;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.crawlerTask.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          source: {
+            select: {
+              id: true,
+              name: true,
+              sourceType: true,
+            },
+          },
+        },
+      }),
+      this.prisma.crawlerTask.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
+  /**
+   * 获取任务详情
+   */
+  async getTask(id: string) {
+    const task = await this.prisma.crawlerTask.findUnique({
+      where: { id },
+      include: {
+        source: {
+          select: {
+            id: true,
+            name: true,
+            sourceType: true,
+            sourceUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException(`任务 ${id} 不存在`);
+    }
+
+    return task;
+  }
+
+  /**
+   * 创建任务
+   */
+  async createTask(dto: CreateCrawlerTaskDto) {
+    // 验证信息源存在
+    await this.getSource(dto.sourceId);
+
+    return this.prisma.crawlerTask.create({
+      data: {
+        sourceId: dto.sourceId,
+        status: "PENDING",
+        scheduledAt: dto.scheduledAt || new Date(),
+      },
+    });
+  }
+
+  /**
+   * 取消任务
+   */
+  async cancelTask(id: string) {
+    const task = await this.getTask(id);
+
+    if (!["PENDING", "RUNNING"].includes(task.status)) {
+      throw new Error("任务状态不允许取消");
+    }
+
+    return this.prisma.crawlerTask.update({
+      where: { id },
+      data: {
+        status: "CANCELLED",
+        completedAt: new Date(),
+      },
+    });
   }
 }

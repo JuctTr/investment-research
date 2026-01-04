@@ -10,7 +10,7 @@ import { QUEUE_NAMES, QUEUE_CONFIG } from './queue.constants';
     }),
     BullModule.registerQueue(
       {
-        name: QUEUE_NAMES.XUEQIU_CRAWLER,
+        name: QUEUE_NAMES.GENERIC_CRAWLER,
         defaultJobOptions: QUEUE_CONFIG.defaultJobOptions,
       },
       {
