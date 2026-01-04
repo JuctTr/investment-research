@@ -25,6 +25,7 @@ export function ContentLayout({ children }: ContentLayoutProps) {
 
   // 路径映射到面包屑
   const breadcrumbMap: Record<string, string> = {
+    "/crawler": "爬虫中心",
     "/dashboard": "仪表盘",
     "/content": "内容列表",
     "/viewpoint": "观点列表",

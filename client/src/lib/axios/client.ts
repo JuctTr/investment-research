@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosInstance } from "axios";
 
 /**
  * 创建客户端 Axios 实例
@@ -10,10 +10,16 @@ import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
  */
 export function createClientInstance(): AxiosInstance {
   const instance = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1',
+    // 开发环境使用相对路径，让 MSW 能拦截请求
+    // 生产环境使用完整 URL
+    baseURL:
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1"
+        : process.env.NEXT_PUBLIC_API_BASE_URL ||
+          "http://localhost:3000/api/v1",
     timeout: 30000,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -21,8 +27,8 @@ export function createClientInstance(): AxiosInstance {
   instance.interceptors.request.use(
     (config) => {
       // 从 localStorage 读取 Token
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('access_token');
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("access_token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -46,9 +52,9 @@ export function createClientInstance(): AxiosInstance {
 
         try {
           // 尝试刷新 Token
-          const refreshToken = localStorage.getItem('refresh_token');
+          const refreshToken = localStorage.getItem("refresh_token");
           if (!refreshToken) {
-            throw new Error('No refresh token');
+            throw new Error("No refresh token");
           }
 
           const response = await axios.post(
@@ -57,17 +63,17 @@ export function createClientInstance(): AxiosInstance {
           );
 
           const { accessToken } = response.data.data;
-          localStorage.setItem('access_token', accessToken);
+          localStorage.setItem("access_token", accessToken);
 
           // 重试原请求
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return instance(originalRequest);
         } catch (refreshError) {
           // 刷新失败，清除 Token 并跳转登录
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
           }
           return Promise.reject(refreshError);
         }

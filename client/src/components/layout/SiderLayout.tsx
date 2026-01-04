@@ -2,6 +2,7 @@
 
 import {
   BulbOutlined,
+  CloudServerOutlined,
   DashboardOutlined,
   FileTextOutlined,
   FundOutlined,
@@ -49,6 +50,21 @@ export const SiderLayout: FC = () => {
       label: "仪表盘",
     },
     // 分组导航（可折叠）
+    {
+      key: "/crawler-group",
+      icon: <CloudServerOutlined />,
+      label: "爬虫管理",
+      children: [
+        {
+          key: "/crawler/sources",
+          label: "信息源管理",
+        },
+        {
+          key: "/crawler",
+          label: "任务监控",
+        },
+      ],
+    },
     {
       key: "/content-group",
       icon: <FileTextOutlined />,

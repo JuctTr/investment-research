@@ -1,8 +1,10 @@
+import { AntdProvider } from "@/components/providers/AntdProvider";
+import { QueryProvider } from "@/components/providers/QueryClientProvider";
+import { App } from "antd";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AntdProvider } from "@/components/providers/AntdProvider";
-import { QueryProvider } from "@/components/providers/QueryClientProvider";
+// import { MSWProvider } from "@/components/providers/MSWProvider"; // 已禁用，使用真实后端 API
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,11 +28,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <QueryProvider>
-          <AntdProvider>
-            {children}
-          </AntdProvider>
+          <App>
+            {/* <MSWProvider> */} {/* 已禁用，使用真实后端 API */}
+            <AntdProvider>{children}</AntdProvider>
+            {/* </MSWProvider> */}
+          </App>
         </QueryProvider>
       </body>
     </html>
