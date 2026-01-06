@@ -272,4 +272,83 @@ export class CrawlerService {
       },
     });
   }
+
+  // ==================== 健康状态管理 ====================
+
+  /**
+   * 处理任务完成后的健康状态更新
+   * @param sourceId 信息源ID
+   * @param success 是否成功
+   */
+  async handleTaskCompletion(sourceId: string, success: boolean) {
+    const source = await this.prisma.crawlerSource.findUnique({
+      where: { id: sourceId },
+    });
+
+    if (!source) {
+      this.logger.warn(`信息源 ${sourceId} 不存在，无法更新健康状态`);
+      return;
+    }
+
+    if (success) {
+      // 成功：重置计数器，恢复健康状态
+      await this.prisma.crawlerSource.update({
+        where: { id: sourceId },
+        data: {
+          consecutiveFailures: 0,
+          lastSuccessAt: new Date(),
+          healthStatus: 'HEALTHY',
+          enabled: true, // 如果之前被禁用，自动重新启用
+        },
+      });
+
+      this.logger.log(
+        `信息源 ${source.name} 爬取成功，已重置失败计数器`
+      );
+    } else {
+      // 失败：递增计数器
+      const newFailures = source.consecutiveFailures + 1;
+      const shouldDisable = newFailures >= source.maxConsecutiveFailures;
+
+      await this.prisma.crawlerSource.update({
+        where: { id: sourceId },
+        data: {
+          consecutiveFailures: newFailures,
+          lastFailureAt: new Date(),
+          healthStatus: shouldDisable ? 'DISABLED' : 'DEGRADED',
+          enabled: !shouldDisable,
+        },
+      });
+
+      if (shouldDisable) {
+        this.logger.warn(
+          `信息源 ${source.name} 连续失败 ${newFailures} 次，已自动禁用`
+        );
+      } else {
+        this.logger.warn(
+          `信息源 ${source.name} 爬取失败 (${newFailures}/${source.maxConsecutiveFailures})`
+        );
+      }
+    }
+  }
+
+  /**
+   * 手动重置信息源健康状态
+   */
+  async resetSourceHealth(id: string) {
+    const source = await this.getSource(id);
+
+    await this.prisma.crawlerSource.update({
+      where: { id },
+      data: {
+        consecutiveFailures: 0,
+        healthStatus: 'HEALTHY',
+        enabled: true,
+      },
+    });
+
+    this.logger.log(`信息源 ${source.name} 健康状态已重置`);
+
+    return { success: true };
+  }
 }

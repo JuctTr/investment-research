@@ -17,12 +17,27 @@ export class StatusRepository {
   }
 
   /**
-   * 插入或更新单条动态
+   * 插入或更新单条动态（智能更新：仅当数据有变化时才更新）
+   * 优化场景：大多数情况下是旧动态，先查询避免无效的INSERT尝试
    */
   async upsert(data: Prisma.XueqiuStatusUncheckedCreateInput) {
-    // 由于 Prisma upsert 的序列化问题，先尝试插入，如果存在则更新
-    try {
-      // 直接创建，如果已存在会抛出错误
+    // 先查询现有记录
+    const existing = await this.prisma.xueqiuStatus.findUnique({
+      where: { statusId: data.statusId },
+      select: {
+        content: true,
+        rawText: true,
+        expandedText: true,
+        targetCount: true,
+        commentCount: true,
+        likeCount: true,
+        repostCount: true,
+        pictures: true,
+      },
+    });
+
+    // 新记录：直接插入
+    if (!existing) {
       return await this.prisma.xueqiuStatus.create({
         data: {
           statusId: data.statusId,
@@ -39,25 +54,53 @@ export class StatusRepository {
           rawData: data.rawData,
         },
       });
-    } catch (error) {
-      // 如果是唯一约束冲突，则更新
-      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
-        return await this.prisma.xueqiuStatus.update({
-          where: { statusId: data.statusId },
-          data: {
-            content: data.content,
-            rawText: data.rawText,
-            expandedText: data.expandedText,
-            targetCount: data.targetCount,
-            commentCount: data.commentCount,
-            likeCount: data.likeCount,
-            repostCount: data.repostCount,
-            pictures: data.pictures,
-          },
-        });
-      }
-      throw error;
     }
+
+    // 旧记录：比较差异，只更新有变化的字段
+    const updateData: Partial<Prisma.XueqiuStatusUpdateInput> = {};
+
+    // 比较文本内容
+    if (existing.content !== data.content) {
+      updateData.content = data.content;
+    }
+    if (existing.rawText !== data.rawText) {
+      updateData.rawText = data.rawText;
+    }
+    if (existing.expandedText !== data.expandedText) {
+      updateData.expandedText = data.expandedText;
+    }
+
+    // 比较数值字段
+    if (existing.targetCount !== data.targetCount) {
+      updateData.targetCount = data.targetCount;
+    }
+    if (existing.commentCount !== data.commentCount) {
+      updateData.commentCount = data.commentCount;
+    }
+    if (existing.likeCount !== data.likeCount) {
+      updateData.likeCount = data.likeCount;
+    }
+    if (existing.repostCount !== data.repostCount) {
+      updateData.repostCount = data.repostCount;
+    }
+
+    // 比较图片数组（需要序列化后比较）
+    const existingPicturesStr = JSON.stringify(existing.pictures?.sort());
+    const newPicturesStr = JSON.stringify((data.pictures as string[])?.sort());
+    if (existingPicturesStr !== newPicturesStr) {
+      updateData.pictures = data.pictures;
+    }
+
+    // 如果没有任何变化，直接返回现有记录
+    if (Object.keys(updateData).length === 0) {
+      return existing;
+    }
+
+    // 只更新有变化的字段
+    return await this.prisma.xueqiuStatus.update({
+      where: { statusId: data.statusId },
+      data: updateData,
+    });
   }
 
   /**

@@ -6,7 +6,8 @@
 
 import { useSourceList } from "@/features/crawler/hooks/useSourceList";
 import { useUIStore } from "@/features/crawler/stores/ui.store";
-import type { CrawlerSource, SourceType } from "@/features/crawler/types";
+import crawlerService from "@/features/crawler/services/crawler.service";
+import type { CrawlerSource, SourceType, SourceHealthStatus } from "@/features/crawler/types";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -14,6 +15,7 @@ import {
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -33,23 +35,37 @@ import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 
 const SOURCE_TYPE_OPTIONS: { label: string; value: SourceType }[] = [
-  { label: "雪球用户", value: "CUSTOM" },
-  { label: "雪球动态", value: "XUEQIU_STATUS" },
-  { label: "雪球", value: "XUEQIU" },
+  { label: "雪球用户资料", value: "XUEQIU_USER_PROFILE" },
+  { label: "雪球用户动态", value: "XUEQIU_USER_STATUSES" },
   { label: "微信公众号", value: "WECHAT" },
   { label: "RSS订阅", value: "RSS" },
+  { label: "Twitter", value: "TWITTER" },
+  { label: "Reddit", value: "REDDIT" },
+  { label: "Hacker News", value: "HACKERNEWS" },
+  { label: "自定义", value: "CUSTOM" },
 ];
 
 const SOURCE_TYPE_COLORS: Record<SourceType, string> = {
-  XUEQIU_USER: "blue",
-  XUEQIU_STATUS: "cyan",
-  XUEQIU: "geekblue",
-  WECHAT: "green",
   RSS: "orange",
+  WECHAT: "green",
+  XUEQIU_USER_PROFILE: "blue",
+  XUEQIU_USER_STATUSES: "cyan",
   TWITTER: "blue",
   REDDIT: "red",
   HACKERNEWS: "volcano",
   CUSTOM: "purple",
+};
+
+const HEALTH_STATUS_COLORS: Record<SourceHealthStatus, string> = {
+  HEALTHY: "success",
+  DEGRADED: "warning",
+  DISABLED: "error",
+};
+
+const HEALTH_STATUS_TEXT: Record<SourceHealthStatus, string> = {
+  HEALTHY: "健康",
+  DEGRADED: "降级",
+  DISABLED: "禁用",
 };
 
 export default function SourcesPage() {
@@ -149,6 +165,17 @@ export default function SourcesPage() {
     }
   };
 
+  // 重置健康状态
+  const handleResetHealth = async (source: CrawlerSource) => {
+    try {
+      await crawlerService.resetSourceHealth(source.id);
+      message.success(`信息源 "${source.name}" 健康状态已重置`);
+      refetch();
+    } catch (error) {
+      message.error("重置失败");
+    }
+  };
+
   // 格式化爬取频率显示
   const formatFetchInterval = (seconds: number) => {
     if (seconds < 60) return `${seconds}秒`;
@@ -169,7 +196,7 @@ export default function SourcesPage() {
       title: "类型",
       dataIndex: "sourceType",
       key: "sourceType",
-      width: 100,
+      width: 120,
       render: (type: SourceType) => (
         <Tag color={SOURCE_TYPE_COLORS[type]}>
           {SOURCE_TYPE_OPTIONS.find((t) => t.value === type)?.label}
@@ -199,7 +226,26 @@ export default function SourcesPage() {
       ),
     },
     {
-      title: "状态",
+      title: "健康状态",
+      key: "healthStatus",
+      width: 120,
+      render: (_, record) => (
+        <Space direction="vertical" size="small">
+          <Tag color={HEALTH_STATUS_COLORS[record.healthStatus]}>
+            {HEALTH_STATUS_TEXT[record.healthStatus]}
+          </Tag>
+          {record.consecutiveFailures > 0 && (
+            <Tooltip title={`连续失败 ${record.consecutiveFailures}/${record.maxConsecutiveFailures} 次`}>
+              <span className="text-xs text-orange-500">
+                失败 {record.consecutiveFailures} 次
+              </span>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: "启用状态",
       dataIndex: "enabled",
       key: "enabled",
       width: 100,
@@ -218,16 +264,9 @@ export default function SourcesPage() {
         date ? new Date(date).toLocaleString("zh-CN") : "-",
     },
     {
-      title: "创建时间",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      width: 180,
-      render: (date: Date) => new Date(date).toLocaleString("zh-CN"),
-    },
-    {
       title: "操作",
       key: "action",
-      width: 200,
+      width: 240,
       fixed: "right",
       render: (_, record) => (
         <Space size="small">
@@ -245,6 +284,15 @@ export default function SourcesPage() {
               onClick={() => handleToggleCrawl(record)}
             />
           </Tooltip>
+          {record.healthStatus !== "HEALTHY" && (
+            <Tooltip title="重置健康状态">
+              <Button
+                type="text"
+                icon={<MedicineBoxOutlined />}
+                onClick={() => handleResetHealth(record)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="编辑">
             <Button
               type="text"
@@ -394,10 +442,14 @@ export default function SourcesPage() {
             </Space.Compact>
           </Form.Item>
 
-          <Form.Item label="配置" name="config">
+          <Form.Item
+            label="高级配置"
+            name="options"
+            tooltip="JSON格式的额外配置，仅用于高级用户"
+          >
             <Input.TextArea
-              rows={4}
-              placeholder='JSON格式的配置，例如: {"interval": 60}'
+              rows={3}
+              placeholder='雪球动态配置: {"maxPages": 5, "type": 0}'
             />
           </Form.Item>
         </Form>

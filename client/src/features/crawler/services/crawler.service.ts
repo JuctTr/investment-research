@@ -122,6 +122,15 @@ class CrawlerService {
     const response = await api.post<DeleteSourceResponse>(`/crawler/sources/${id}/stop`);
     return response.data;
   }
+
+  /**
+   * 重置信息源健康状态
+   */
+  async resetSourceHealth(id: string): Promise<{ success: true }> {
+    const api = getRequestInstance();
+    const response = await api.post<{ success: true }>(`/crawler/sources/${id}/reset-health`);
+    return response.data;
+  }
 }
 
 // 导出单例实例

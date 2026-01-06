@@ -159,20 +159,28 @@ enum ReviewResult {
 
 // 爬虫数据源配置
 model CrawlerSource {
-  id            String          @id @default(cuid())
-  name          String
-  sourceType    SourceType
-  sourceUrl     String          @unique
-  enabled       Boolean         @default(true)
-  fetchInterval Int             @default(3600)
-  lastFetchAt   DateTime?
-  lastEtag      String?
-  authConfig    Json?
-  options       Json?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                      String          @id @default(cuid())
+  name                    String
+  sourceType              SourceType
+  sourceUrl               String          @unique
+  enabled                 Boolean         @default(true)
+  fetchInterval           Int             @default(3600)
+  lastFetchAt             DateTime?
+  lastEtag                String?
+  authConfig              Json?
+  options                 Json?
 
-  tasks         CrawlerTask[]
+  // 失败管理字段
+  consecutiveFailures     Int             @default(0)
+  maxConsecutiveFailures  Int             @default(5)
+  lastFailureAt           DateTime?
+  lastSuccessAt           DateTime?
+  healthStatus            SourceHealthStatus @default(HEALTHY)
+
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  tasks                   CrawlerTask[]
 
   @@map("crawler_sources")
 }
@@ -201,11 +209,19 @@ model CrawlerTask {
 enum SourceType {
   RSS
   WECHAT
-  XUEQIU
+  XUEQIU_USER_PROFILE     // 雪球用户资料
+  XUEQIU_USER_STATUSES    // 雪球用户动态
   TWITTER
   REDDIT
   HACKERNEWS
   CUSTOM
+}
+
+// 数据源健康状态枚举
+enum SourceHealthStatus {
+  HEALTHY    // 健康：正常运行
+  DEGRADED   // 降级：有失败但未达到禁用阈值
+  DISABLED   // 禁用：达到失败阈值被自动禁用
 }
 
 // 任务状态枚举

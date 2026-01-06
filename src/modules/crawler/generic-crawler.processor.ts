@@ -4,6 +4,8 @@ import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue/queue.constants';
 import { PrismaService } from '../../database/prisma.service';
 import { XueqiuService } from '../xueqiu/xueqiu.service';
+import { StatusCrawlerService } from '../xueqiu/status-crawler.service';
+import { CrawlerService } from './crawler.service';
 import { RateLimitService } from './rate-limit.service';
 
 /**
@@ -17,6 +19,8 @@ export class GenericCrawlerProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xueqiu: XueqiuService,
+    private readonly xueqiuStatusCrawler: StatusCrawlerService,
+    private readonly crawler: CrawlerService,
     private readonly rateLimit: RateLimitService,
   ) {
     super();
@@ -134,6 +138,9 @@ export class GenericCrawlerProcessor extends WorkerHost {
         },
       });
 
+      // 更新健康状态：成功
+      await this.crawler.handleTaskCompletion(sourceId, true);
+
       this.logger.log(`任务 ${job.id} 完成: 信息源 ${source.name}`);
       return result;
     } catch (error) {
@@ -147,6 +154,9 @@ export class GenericCrawlerProcessor extends WorkerHost {
           errorStack: error.stack,
         },
       });
+
+      // 更新健康状态：失败
+      await this.crawler.handleTaskCompletion(sourceId, false);
 
       throw error;
     }
@@ -162,8 +172,10 @@ export class GenericCrawlerProcessor extends WorkerHost {
 
     // 根据不同的 sourceType 调用不同的爬虫服务
     switch (sourceType) {
-      case 'XUEQIU':
-        return this.crawlXueqiu(source);
+      case 'XUEQIU_USER_PROFILE':
+        return this.crawlXueqiuUserProfile(source);
+      case 'XUEQIU_USER_STATUSES':
+        return this.crawlXueqiuUserStatuses(source);
       case 'RSS':
         return this.crawlRss(source);
       case 'WECHAT':
@@ -182,19 +194,65 @@ export class GenericCrawlerProcessor extends WorkerHost {
   }
 
   /**
-   * 爬取雪球
+   * 爬取雪球用户资料
    */
-  private async crawlXueqiu(source: any) {
-    this.logger.log(`爬取雪球: ${source.sourceUrl}`);
+  private async crawlXueqiuUserProfile(source: any) {
+    this.logger.log(`爬取雪球用户资料: ${source.sourceUrl}`);
     // 从 URL 中提取用户ID
     const userIdMatch = source.sourceUrl.match(/\/u\/(\w+)/);
     if (!userIdMatch) {
       throw new Error(`无效的雪球URL: ${source.sourceUrl}`);
     }
     const userId = userIdMatch[1];
-    // 调用雪球爬取服务
-    const profile = await this.xueqiu.fetchUserProfile(userId);
+    // 调用雪球用户资料爬取服务
+    await this.xueqiu.fetchUserProfile(userId);
     return { fetched: 1, parsed: 1, stored: 1 };
+  }
+
+  /**
+   * 爬取雪球用户动态
+   */
+  private async crawlXueqiuUserStatuses(source: any) {
+    this.logger.log(`爬取雪球用户动态: ${source.sourceUrl}`);
+    // 从 URL 中提取用户ID
+    const userIdMatch = source.sourceUrl.match(/\/u\/(\w+)/);
+    if (!userIdMatch) {
+      throw new Error(`无效的雪球URL: ${source.sourceUrl}`);
+    }
+    const userId = userIdMatch[1];
+
+    // 从 options 中获取配置
+    const options = source.options || {};
+    const page = options.page || 1;
+    const type = options.type !== undefined ? options.type : 0;
+    const maxPages = options.maxPages || 1;
+
+    let totalFetched = 0;
+
+    // 支持爬取多页
+    for (let currentPage = 1; currentPage <= maxPages; currentPage++) {
+      this.logger.log(`爬取用户 ${userId} 第 ${currentPage}/${maxPages} 页`);
+
+      const result = await this.xueqiuStatusCrawler.fetchUserStatuses(userId, {
+        page: currentPage,
+        type,
+      });
+
+      totalFetched += result.statuses.length;
+
+      // 如果没有更多数据，提前结束
+      if (!result.hasMore) {
+        this.logger.log(`用户 ${userId} 没有更多动态`);
+        break;
+      }
+
+      // 避免请求过快
+      if (currentPage < maxPages && result.hasMore) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    return { fetched: totalFetched, parsed: totalFetched, stored: totalFetched };
   }
 
   /**

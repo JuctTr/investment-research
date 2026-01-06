@@ -89,6 +89,15 @@ export class CrawlerController {
     return this.crawler.stopSource(id);
   }
 
+  @Post("sources/:id/reset-health")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "重置信息源健康状态" })
+  @ApiResponse({ status: 200, description: "健康状态已重置" })
+  @ApiResponse({ status: 404, description: "信息源不存在" })
+  async resetSourceHealth(@Param("id") id: string) {
+    return this.crawler.resetSourceHealth(id);
+  }
+
   // ==================== 任务管理 ====================
 
   @Get("tasks")

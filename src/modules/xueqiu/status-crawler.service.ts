@@ -104,7 +104,7 @@ export class StatusCrawlerService {
 
       // 先访问用户页面触发WAF验证
       await browserPage.goto(`${this.API_BASE}/u/${userId}`, {
-        waitUntil: "networkidle2", // 只等待DOM加载完成，不等待网络空闲
+        waitUntil: "networkidle2",
         timeout: 30000,
       });
 
