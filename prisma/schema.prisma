@@ -201,6 +201,7 @@ model CrawlerTask {
 enum SourceType {
   RSS
   WECHAT
+  XUEQIU
   TWITTER
   REDDIT
   HACKERNEWS

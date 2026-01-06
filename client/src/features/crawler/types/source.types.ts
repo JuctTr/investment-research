@@ -9,7 +9,11 @@ export type SourceType =
   | "XUEQIU_USER"
   | "XUEQIU_STATUS"
   | "WECHAT"
+  | "XUEQIU"
   | "RSS"
+  | "TWITTER"
+  | "REDDIT"
+  | "HACKERNEWS"
   | "CUSTOM";
 
 /**

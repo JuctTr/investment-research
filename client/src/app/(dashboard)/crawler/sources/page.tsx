@@ -35,6 +35,7 @@ import { useState } from "react";
 const SOURCE_TYPE_OPTIONS: { label: string; value: SourceType }[] = [
   { label: "雪球用户", value: "CUSTOM" },
   { label: "雪球动态", value: "XUEQIU_STATUS" },
+  { label: "雪球", value: "XUEQIU" },
   { label: "微信公众号", value: "WECHAT" },
   { label: "RSS订阅", value: "RSS" },
 ];
@@ -42,8 +43,13 @@ const SOURCE_TYPE_OPTIONS: { label: string; value: SourceType }[] = [
 const SOURCE_TYPE_COLORS: Record<SourceType, string> = {
   XUEQIU_USER: "blue",
   XUEQIU_STATUS: "cyan",
+  XUEQIU: "geekblue",
   WECHAT: "green",
   RSS: "orange",
+  TWITTER: "blue",
+  REDDIT: "red",
+  HACKERNEWS: "volcano",
+  CUSTOM: "purple",
 };
 
 export default function SourcesPage() {

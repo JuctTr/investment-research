@@ -200,7 +200,9 @@ export const handlers = [
     const newTask = createMockTask({
       sourceId: data.sourceId,
       status: 'PENDING',
-      progress: 0,
+      totalFetched: 0,
+      totalParsed: 0,
+      totalStored: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
       startedAt: null,

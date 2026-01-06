@@ -14,13 +14,28 @@ export interface CrawlerTask {
   id: string;
   sourceId: string;
   status: TaskStatus;
-  progress: number;
-  result?: Record<string, any>;
-  error?: string;
+  scheduledAt: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
+  totalFetched: number;
+  totalParsed: number;
+  totalStored: number;
+  errorMessage: string | null;
+  errorStack: string | null;
   createdAt: Date;
   updatedAt: Date;
+  // 关联的信息源（可选，用于显示）
+  source?: CrawlerTaskSource;
+}
+
+/**
+ * 任务关联的信息源信息
+ */
+export interface CrawlerTaskSource {
+  id: string;
+  name: string;
+  sourceType: string;
+  sourceUrl: string;
 }
 
 /**

@@ -18,12 +18,12 @@ const { Sider } = Layout;
 
 type MenuItem = Required<MenuProps>["items"][number];
 
-interface MenuGroup extends MenuItem {
+type MenuGroup = MenuItem & {
   key: string;
   label: string;
   icon?: ReactNode;
   children?: MenuItem[];
-}
+};
 
 /**
  * 侧边菜单栏组件

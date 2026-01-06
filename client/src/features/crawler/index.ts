@@ -13,4 +13,5 @@ export { useUIStore } from "./stores/ui.store";
 
 // Hooks
 export { useSourceList } from "./hooks/useSourceList";
+export { useTaskList } from "./hooks/useTaskList";
 export { useTaskPolling } from "./hooks/useTaskPolling";

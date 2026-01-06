@@ -51,40 +51,32 @@ export const createMockSources = (count: number): CrawlerSource[] => {
 export const createMockTask = (overrides?: Partial<CrawlerTask>): CrawlerTask => {
   const status = faker.helpers.arrayElement(['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED'] as const);
 
-  // 根据状态生成合理的进度
-  const progressByStatus = {
-    PENDING: 0,
-    RUNNING: faker.number.int({ min: 10, max: 90 }),
-    SUCCESS: 100,
-    FAILED: faker.number.int({ min: 0, max: 80 }),
-    CANCELLED: faker.number.int({ min: 0, max: 100 }),
+  // 根据状态生成合理的统计数字
+  const statsByStatus = {
+    PENDING: { fetched: 0, parsed: 0, stored: 0 },
+    RUNNING: {
+      fetched: faker.number.int({ min: 10, max: 500 }),
+      parsed: faker.number.int({ min: 5, max: 450 }),
+      stored: faker.number.int({ min: 0, max: 400 }),
+    },
+    SUCCESS: {
+      fetched: faker.number.int({ min: 50, max: 1000 }),
+      parsed: faker.number.int({ min: 45, max: 950 }),
+      stored: faker.number.int({ min: 40, max: 900 }),
+    },
+    FAILED: {
+      fetched: faker.number.int({ min: 0, max: 100 }),
+      parsed: faker.number.int({ min: 0, max: 80 }),
+      stored: 0,
+    },
+    CANCELLED: {
+      fetched: faker.number.int({ min: 0, max: 50 }),
+      parsed: faker.number.int({ min: 0, max: 40 }),
+      stored: faker.number.int({ min: 0, max: 30 }),
+    },
   };
 
-  const progress = progressByStatus[status];
-
-  // 根据类型生成不同的结果数据
-  const resultBySourceId = (sourceId: string) => {
-    const type = sourceId.split('-')[0];
-    if (type === 'XUEQIU_USER') {
-      return {
-        user: faker.person.fullName(),
-        followers: faker.number.int({ min: 0, max: 100000 }),
-        description: faker.lorem.paragraph(),
-        location: faker.location.city(),
-      };
-    }
-    if (type === 'XUEQIU_STATUS') {
-      return {
-        content: faker.lorem.paragraphs(2),
-        targetCount: faker.number.int({ min: 0, max: 1000 }),
-        commentCount: faker.number.int({ min: 0, max: 500 }),
-        likeCount: faker.number.int({ min: 0, max: 200 }),
-      };
-    }
-    return {
-      rawData: faker.lorem.paragraphs(3),
-    };
-  };
+  const stats = statsByStatus[status];
 
   const hasError = status === 'FAILED';
 
@@ -92,21 +84,28 @@ export const createMockTask = (overrides?: Partial<CrawlerTask>): CrawlerTask =>
     id: faker.string.uuid(),
     sourceId: faker.string.uuid(),
     status,
-    progress,
-    result: ['SUCCESS', 'FAILED'].includes(status) ? resultBySourceId(faker.string.uuid()) : undefined,
-    error: hasError ? faker.helpers.arrayElement([
-      '网络超时',
-      '目标页面不存在',
-      'Cookie已过期',
-      '解析失败',
-      '请求频率限制',
-    ]) : undefined,
+    scheduledAt: faker.date.recent({ days: 1 }),
     startedAt: ['RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED'].includes(status)
       ? faker.date.recent({ days: 1 })
       : null,
     completedAt: ['SUCCESS', 'FAILED', 'CANCELLED'].includes(status)
       ? faker.date.recent({ days: 1 })
       : null,
+    totalFetched: stats.fetched,
+    totalParsed: stats.parsed,
+    totalStored: stats.stored,
+    errorMessage: hasError ? faker.helpers.arrayElement([
+      '网络超时',
+      '目标页面不存在',
+      'Cookie已过期',
+      '解析失败',
+      '请求频率限制',
+      '无法从页面提取用户数据',
+    ]) : null,
+    errorStack: hasError ? `Error: ${faker.helpers.arrayElement([
+      '网络超时',
+      '目标页面不存在',
+    ])}\n    at ${faker.system.filePath()}:${faker.number.int({ min: 1, max: 100 }) }:${faker.number.int({ min: 1, max: 50 })}` : null,
     createdAt: faker.date.past({ years: 1 }),
     updatedAt: faker.date.recent({ days: 1 }),
     ...overrides,

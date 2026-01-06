@@ -5,6 +5,7 @@ import { QueueService } from '@/modules/queue/queue.service';
 import { PrismaService } from '@/database/prisma.service';
 import { IScheduleStrategy, SCHEDULE_STRATEGY } from './schedule-strategy.interface';
 import { WechatScheduleStrategy } from './strategies/wechat-schedule.strategy';
+import { RateLimitService } from '../rate-limit.service';
 
 /**
  * 通用爬虫调度服务
@@ -20,6 +21,7 @@ export class CrawlerScheduleService {
     private readonly prisma: PrismaService,
     private readonly crawler: CrawlerService,
     private readonly queue: QueueService,
+    private readonly rateLimit: RateLimitService,
     @Inject(SCHEDULE_STRATEGY) private readonly defaultStrategy: IScheduleStrategy,
     private readonly wechatStrategy: WechatScheduleStrategy,
   ) {}
@@ -75,8 +77,27 @@ export class CrawlerScheduleService {
         return;
       }
 
-      // 为需要调度的信息源创建爬取任务
-      const taskPromises = sourcesToSchedule.map((source) =>
+      // 应用限流控制：只对允许执行的信息源创建任务
+      const sourcesAllowedToExecute = [];
+      for (const source of sourcesToSchedule) {
+        const canExecute = await this.rateLimit.canExecute(source.id);
+
+        if (canExecute) {
+          sourcesAllowedToExecute.push(source);
+        } else {
+          this.logger.debug(
+            `信息源 [${source.name}] 被限流跳过`,
+          );
+        }
+      }
+
+      if (sourcesAllowedToExecute.length === 0) {
+        this.logger.log('所有信息源均被限流，跳过本次调度');
+        return;
+      }
+
+      // 为允许执行的信息源创建爬取任务
+      const taskPromises = sourcesAllowedToExecute.map((source) =>
         this.createCrawlTask(source),
       );
 
@@ -90,7 +111,7 @@ export class CrawlerScheduleService {
       this.lastScheduleTime = new Date();
 
       this.logger.log(
-        `爬虫调度任务完成: 成功 ${successCount}/${sourcesToSchedule.length}, 失败 ${failedCount}, 耗时 ${duration}ms`,
+        `爬虫调度任务完成: 成功 ${successCount}/${sourcesAllowedToExecute.length}, 失败 ${failedCount}, 限流跳过 ${sourcesToSchedule.length - sourcesAllowedToExecute.length}, 耗时 ${duration}ms`,
       );
     } catch (error: any) {
       this.logger.error(`爬虫调度任务失败: ${error.message}`, error.stack);

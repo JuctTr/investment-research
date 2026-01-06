@@ -1,9 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { CrawlerService } from './crawler.service';
 import { QUEUE_NAMES } from '../queue/queue.constants';
 import { PrismaService } from '../../database/prisma.service';
+import { XueqiuService } from '../xueqiu/xueqiu.service';
+import { RateLimitService } from './rate-limit.service';
 
 /**
  * 统一爬虫任务处理器
@@ -14,8 +15,9 @@ export class GenericCrawlerProcessor extends WorkerHost {
   private readonly logger = new Logger(GenericCrawlerProcessor.name);
 
   constructor(
-    private readonly crawler: CrawlerService,
     private readonly prisma: PrismaService,
+    private readonly xueqiu: XueqiuService,
+    private readonly rateLimit: RateLimitService,
   ) {
     super();
   }
@@ -55,6 +57,11 @@ export class GenericCrawlerProcessor extends WorkerHost {
 
       this.logger.error(`任务 ${job.id} 失败: ${sourceType}`, error.stack);
       throw error;
+    } finally {
+      // 通知限流服务任务已完成
+      if (sourceId) {
+        this.rateLimit.onTaskComplete(job.id, sourceId);
+      }
     }
   }
 
@@ -67,7 +74,7 @@ export class GenericCrawlerProcessor extends WorkerHost {
     this.logger.log(`正在处理雪球用户任务 ${job.id}: 用户 ${userId}`);
 
     try {
-      const profile = await this.crawler.fetchUserProfile(userId);
+      const profile = await this.xueqiu.fetchUserProfile(userId);
       this.logger.log(`任务 ${job.id} 完成: 用户 ${userId}`);
       return profile;
     } catch (error) {
@@ -83,6 +90,9 @@ export class GenericCrawlerProcessor extends WorkerHost {
     const { sourceId, taskId } = job.data;
 
     try {
+      // 通知限流服务任务开始
+      this.rateLimit.onTaskStart(taskId, sourceId);
+
       // 更新任务状态为运行中
       await this.prisma.crawlerTask.update({
         where: { id: taskId },
@@ -152,6 +162,8 @@ export class GenericCrawlerProcessor extends WorkerHost {
 
     // 根据不同的 sourceType 调用不同的爬虫服务
     switch (sourceType) {
+      case 'XUEQIU':
+        return this.crawlXueqiu(source);
       case 'RSS':
         return this.crawlRss(source);
       case 'WECHAT':
@@ -167,6 +179,22 @@ export class GenericCrawlerProcessor extends WorkerHost {
       default:
         throw new Error(`不支持的信息源类型: ${sourceType}`);
     }
+  }
+
+  /**
+   * 爬取雪球
+   */
+  private async crawlXueqiu(source: any) {
+    this.logger.log(`爬取雪球: ${source.sourceUrl}`);
+    // 从 URL 中提取用户ID
+    const userIdMatch = source.sourceUrl.match(/\/u\/(\w+)/);
+    if (!userIdMatch) {
+      throw new Error(`无效的雪球URL: ${source.sourceUrl}`);
+    }
+    const userId = userIdMatch[1];
+    // 调用雪球爬取服务
+    const profile = await this.xueqiu.fetchUserProfile(userId);
+    return { fetched: 1, parsed: 1, stored: 1 };
   }
 
   /**
